@@ -9,8 +9,10 @@ model into `POST /v1/audio/speech`, with the weights baked into the image (sha25
 a build-time gate that fails the build if the model cannot load offline, and an acceptance
 battery for the deployed service.
 
-Deploy: `https://railway.com/deploy/<code>` (added after publish) — or one-click from the
-GitHub repo with Railway's "Deploy from GitHub repo".
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.app/new?github_url=https://github.com/lNamelessl/paradee-tts-api)
+
+One service, no variables, no credentials, no volume. Weights are baked into the image at
+build time and verified by sha256; the running container makes no outbound calls.
 
 ```bash
 curl -X POST https://<your-service>.up.railway.app/v1/audio/speech \
