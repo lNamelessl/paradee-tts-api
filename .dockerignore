@@ -1,0 +1,13 @@
+.git
+.github
+.gitignore
+.dockerignore
+tests
+*.md
+*.lock
+models
+.venv-local
+_*.txt
+_*.json
+__pycache__
+*.pyc

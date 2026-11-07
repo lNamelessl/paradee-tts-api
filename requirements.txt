@@ -1,0 +1,26 @@
+# Direct pins for the exact stack that was verified in the local pre-flight.
+# requirements.lock holds the fully resolved closure from that install.
+#
+# fastapi/uvicorn: the versions used by the sibling API templates (0.142.2 / 0.54.0).
+fastapi==0.142.2
+uvicorn==0.54.0
+
+# onnxruntime 1.31.1 is the current cp312 manylinux_2_28 x86_64 build; the
+# upstream graph was exported for ORT >= 1.17.
+onnxruntime==1.31.1
+
+# spacy 3.8.x + en_core_web_sm 3.8.0 are installed as a matched pair: misaki
+# loads the model package by name with components ['tok2vec', 'tagger'].
+spacy==3.8.18
+
+# paradee imports hf_hub_download at module import even though we always pass
+# explicit model/config paths; 0.36.2 guarantees that symbol exists (>=2.0 has
+# not been verified against this code path).
+huggingface-hub==0.36.2
+
+# G2P stack (paradee declares these; pinning them here makes the build
+# reproducible and keeps pip from resolving newer versions on each build).
+misaki==0.9.4
+num2words==0.5.14
+phonemizer-fork==3.3.2
+espeakng-loader==0.2.4

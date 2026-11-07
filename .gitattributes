@@ -1,0 +1,6 @@
+# Keep every text file LF in the repository and in the working tree. The image
+# runs shell scripts and a Dockerfile from this checkout, and CRLF breaks both.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
