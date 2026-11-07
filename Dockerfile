@@ -46,19 +46,20 @@ RUN PARADEE_MODEL_PATH=/build/models/paradee_int8.onnx \
 
 FROM python:3.12-slim AS runtime
 
+# PORT is only the local default: Railway injects its own at runtime (8080
+# observed), and the CMD reads it. The model files are inside the image, so
+# the process must never reach the network — HF_HUB_OFFLINE=1 makes an
+# accidental fetch fail loudly instead of silently downloading.
+# OMP_NUM_THREADS=1 keeps latency predictable on a shared vCPU, and matches
+# the single-thread basis of the vendor's speed figure.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    # Railway injects PORT at runtime (8080); this is only the local default.
     PORT=8000 \
-    # The model and its files are inside the image, so the process must never
-    # reach the network: HF_HUB_OFFLINE=1 makes an accidental fetch fail loudly.
     HF_HUB_OFFLINE=1 \
     HF_HUB_DISABLE_TELEMETRY=1 \
     PARADEE_MODEL_PATH=/app/models/paradee_int8.onnx \
     PARADEE_CONFIG_PATH=/app/models/config.json \
-    # One ONNX thread: predictable latency on a shared vCPU, and the vendor's
-    # speed figure is also a single-thread number.
     OMP_NUM_THREADS=1 \
     HOME=/home/app
 
