@@ -6,6 +6,7 @@ set -euo pipefail
 
 BASE="${1:-http://127.0.0.1:8011}"
 BASE="${BASE%/}"
+PYTHON="${PYTHON:-python3}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -24,7 +25,7 @@ code=$(curl -sS -o "$TMP/a.wav" -w '%{http_code} %{size_download}' \
   -X POST "$BASE/v1/audio/speech" -H 'Content-Type: application/json' \
   -d '{"model":"paradee-1.2","input":"Paradee is a small voice that runs anywhere.","voice":"af_heart","response_format":"wav"}')
 say "http=$code"
-python - "$TMP/a.wav" <<'PY'
+"$PYTHON" - "$TMP/a.wav" <<'PY'
 import sys, wave
 with wave.open(sys.argv[1], "rb") as w:
     print(f"wav channels={w.getnchannels()} width={w.getsampwidth()} rate={w.getframerate()} frames={w.getnframes()}")
@@ -33,7 +34,7 @@ PY
 say "== /v1/audio/speech/with-timestamps (bm_fable)"
 curl -fsS -X POST "$BASE/v1/audio/speech/with-timestamps" -H 'Content-Type: application/json' \
   -d '{"input":"One two three. Four five.","voice":"bm_fable"}' \
-  | python -c 'import json,sys; d=json.load(sys.stdin); print("duration_s=",d["duration_s"],"words=",d["words"][:4])'
+  | "$PYTHON" -c 'import json,sys; d=json.load(sys.stdin); print("duration_s=",d["duration_s"],"words=",d["words"][:4])'
 
 say "== error shapes"
 for body in '{"input":"hi","voice":"af_nova"}' '{"input":"hi","response_format":"mp3"}' '{"input":"   "}'; do
