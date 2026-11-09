@@ -9,7 +9,7 @@ model into `POST /v1/audio/speech`, with the weights baked into the image (sha25
 a build-time gate that fails the build if the model cannot load offline, and an acceptance
 battery for the deployed service.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.app/new?github_url=https://github.com/lNamelessl/paradee-tts-api)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/paradee-tts-api)
 
 One service, no variables, no credentials, no volume. Weights are baked into the image at
 build time and verified by sha256; the running container makes no outbound calls.
@@ -125,25 +125,34 @@ python tests/battery.py --base-url http://127.0.0.1:8011
 ## Measured performance
 
 Measured by `tests/battery.py` against a running instance — not copied from the model's
-README. The vendor's ~62× realtime figure is **one CPU thread of an Apple M4 Pro**; the
-server numbers below are the same single-thread configuration on a local desktop (Windows,
-Python 3.11) and are re-measured on Railway before publishing the template.
+README. The vendor's ~62× realtime figure is **one CPU thread of an Apple M4 Pro** and is not
+repeated here. Two columns: a local desktop (Windows, Python 3.11) and the deployed Railway
+service (shared vCPU, single replica, one thread), which is the configuration a template user
+actually gets.
 
-| What | Local result (1 thread) |
-|---|---|
-| Latency, short sentence (10 calls) | **p50 231 ms, p95 239 ms** for 4.6 s of audio |
-| Implied realtime factor | **~20× at p50** (19.9×), 19.2× at p95 |
-| 1,500-character paragraph | 102.6 s of audio in 4.5 s wall (**22.7×**) |
-| Speed scaling | `speed=2.0` → 1.92× shorter, `speed=0.5` → 2.02× longer |
-| RSS after load (both accents warmed) | **441 MB** at boot, **~503 MB** peak during the 1,500-character call |
-| Cold start | ~28 s first boot (cold page cache), ~7 s on restart; `/health` is 200 only when the model can speak |
-| Model load | 8.5 MB int8 ONNX, one thread, 12 random nodes (see disclosures) |
+| What | Local desktop (1 thread) | Railway (shared vCPU) |
+|---|---|---|
+| Latency, short sentence (10 calls) | p50 **231 ms**, p95 239 ms for 4.6 s of audio | p50 **2.1–3.9 s**, p95 2.2–7.1 s |
+| Implied realtime factor | ~20× at p50 (19.9×) | **1.2–2.2×** at p50 (host load dependent) |
+| 1,500-character paragraph | 102.6 s of audio in 4.5 s wall (**22.7×**) | 102.6 s of audio in 6.7–12.7 s (**8–15×**) |
+| Speed scaling | `speed=2.0` → 1.92× shorter, `speed=0.5` → 2.02× longer | same (1.92× / 2.02×) |
+| RSS after boot | 441 MB (both accents warmed) | **332 MB** (American lexicon warm) |
+| RSS after the first British request | — | ~505 MB |
+| RSS after a 1,500-character call | ~503 MB peak | **~766–795 MB plateau** |
+| Cold start | ~28 s first boot, ~7 s on restart | about a minute including the healthcheck window; restart to `/health` in ~15–20 s |
 
-Memory is the tightest constraint: warming both accents costs ~440 MB, because misaki keeps a
-full pronunciation lexicon per language (American + British). If a deployment shows an
-out-of-memory restart, dropping the `bf_isabella` line from the warm-up loop in
-`app/engine.py` makes the British lexicon load lazily on the first British request (one-off
-~2–4 s) and lowers steady-state RSS; the API itself needs no change.
+Request latency on Railway swings with the shared host: the same 4.6 s sentence measured
+2.1 s and 4.2 s p50 in different runs, while the long-paragraph throughput stayed at 8–15×
+realtime. Quote the range, not a single sample.
+
+Memory: the British lexicon is loaded lazily — `app/engine.py` warms only the American G2P at
+boot and the first British request pays a one-off ~2 s while the lexicon comes in. That keeps a
+fresh process at ~332 MB instead of ~440 MB. The bigger number is the per-request working set
+for a maximum-length (1,500-character / ~102 s) utterance, which lifts RSS to a stable
+~766–795 MB plateau; repeating the request does not raise it further, and lowering it is not
+something the API layer can do (a `malloc_trim` per request was measured and moved it by only
+~15 MB, so it was not kept). Give the instance ~1 GB of memory if you expect maximum-length
+input.
 
 
 ## Disclosures
