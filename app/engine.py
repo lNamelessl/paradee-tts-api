@@ -113,16 +113,21 @@ def load():
             threads=1,
         )
 
-        # Build both G2P objects (spaCy model + misaki lexicons + eSpeak backend)
-        # before /health turns green, so the first British request is not a
-        # multi-second outlier.
-        for voice in ("af_heart", "bf_isabella"):
+        # Establish the American G2P (spaCy model + misaki lexicon + eSpeak
+        # backend) before /health turns green. The British G2P is left to load
+        # lazily on the first British request: misaki keeps a full gold+silver
+        # lexicon per language, and on a 512 MB-class instance warming both
+        # accents at boot is what pushes a 1500-character request into the
+        # allocator plateau. The first British call therefore costs one extra
+        # ~2-4 s; /health reports which accents are ready.
+        for voice in ("af_heart",):
             tts.phonemize("warm up.", voice)
-            _g2p_ready["british" if voice.startswith("b") else "american"] = True
+            _g2p_ready["american"] = True
 
-        # One short synthesis per voice: proves the voice table and the decoder
-        # path on this machine, and removes first-call graph setup from latency.
-        for voice in voices():
+        # One short synthesis per American voice: proves the voice table and the
+        # decoder path on this machine, and removes first-call graph setup from
+        # latency.
+        for voice in ("af_heart", "am_puck"):
             tts("Warm up.", speed=1.0, voice=voice)
 
         _tts = tts
@@ -137,11 +142,18 @@ def _require_model():
     return _tts
 
 
+def _mark_g2p(voice):
+    """Record that a voice's accent lexicon is now resident (lazy British load)."""
+    _g2p_ready["british" if voice.startswith("b") else "american"] = True
+
+
 def synthesize(text, voice=config.DEFAULT_VOICE, speed=config.DEFAULT_SPEED):
     """text -> float32 mono waveform at 24 kHz."""
     tts = _require_model()
     with _lock:
-        return tts(text, speed=speed, voice=voice)
+        audio = tts(text, speed=speed, voice=voice)
+    _mark_g2p(voice)
+    return audio
 
 
 def synthesize_with_timestamps(text, voice=config.DEFAULT_VOICE, speed=config.DEFAULT_SPEED):
@@ -149,6 +161,7 @@ def synthesize_with_timestamps(text, voice=config.DEFAULT_VOICE, speed=config.DE
     tts = _require_model()
     with _lock:
         audio, words = tts.with_timestamps(text, speed=speed, voice=voice)
+    _mark_g2p(voice)
     # paradee returns [(text, start, end)] tuples; the API speaks dicts.
     stamps = [{"word": w, "start": round(float(s), 3), "end": round(float(e), 3)} for w, s, e in words]
     return audio, stamps
