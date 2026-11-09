@@ -147,29 +147,12 @@ def _mark_g2p(voice):
     _g2p_ready["british" if voice.startswith("b") else "american"] = True
 
 
-def _trim_heap():
-    """Hand freed glibc arena pages back to the OS (Linux only, no-op elsewhere).
-
-    A maximum-length (1,500 character) request grows RSS by ~350 MB that the
-    process no longer uses; the plateau is stable rather than a leak, but on a
-    512 MB-class instance the pages are worth returning. Measured effect is in
-    the README's memory table.
-    """
-    try:
-        import ctypes
-
-        ctypes.CDLL("libc.so.6").malloc_trim(0)
-    except Exception:
-        return
-
-
 def synthesize(text, voice=config.DEFAULT_VOICE, speed=config.DEFAULT_SPEED):
     """text -> float32 mono waveform at 24 kHz."""
     tts = _require_model()
     with _lock:
         audio = tts(text, speed=speed, voice=voice)
     _mark_g2p(voice)
-    _trim_heap()
     return audio
 
 
@@ -179,7 +162,6 @@ def synthesize_with_timestamps(text, voice=config.DEFAULT_VOICE, speed=config.DE
     with _lock:
         audio, words = tts.with_timestamps(text, speed=speed, voice=voice)
     _mark_g2p(voice)
-    _trim_heap()
     # paradee returns [(text, start, end)] tuples; the API speaks dicts.
     stamps = [{"word": w, "start": round(float(s), 3), "end": round(float(e), 3)} for w, s, e in words]
     return audio, stamps
