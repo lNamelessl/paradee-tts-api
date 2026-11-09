@@ -11,9 +11,11 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 # git is needed only here: paradee has no PyPI release and is installed from a
-# pinned commit. ca-certificates is needed for the wheel downloads.
+# pinned commit. ca-certificates is needed for the wheel downloads. curl is what
+# scripts/fetch_models.sh uses to pull the pinned weights — python:3.12-slim
+# ships neither curl nor wget, so the build fails with exit 127 without it.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates \
+    && apt-get install -y --no-install-recommends git ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python -m venv /opt/venv
