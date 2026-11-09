@@ -77,6 +77,10 @@ ENV PATH=/opt/venv/bin:$PATH
 COPY --from=builder /build/models/ /app/models/
 COPY app/ /app/app/
 
+# uvicorn resolves `app.main:app` relative to the working directory, so the
+# process must start in /app (the builder's WORKDIR does not carry over).
+WORKDIR /app
+
 RUN useradd --create-home --uid 10001 app \
     && chown -R app:app /app /home/app
 
